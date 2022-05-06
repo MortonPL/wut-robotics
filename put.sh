@@ -73,4 +73,3 @@ fi
     expect $_prompt1;
     exit
 END
-echo ""
