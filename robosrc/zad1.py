@@ -1,7 +1,8 @@
 #!/usr/bin/ micropython
+from msilib.schema import Icon
 from ev3dev2.motor import OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D
 from ev3dev2.sensor import INPUT_1, INPUT_4
-from time import sleep
+from time import sleep, time
 import sys
 import signal
 
@@ -35,28 +36,54 @@ class Robot:
 
     def main(self, drive, detector):
         #tank_drive = MoveTank(OUTPUT_A, OUTPUT_D)
+        pid = PID(Pconst=1, Iconst=1, Dconst=1)
 
         while True:
             light_left = detector.left()
             light_right = detector.right()
-
             txt = "{s1:.2f}, {s2:.2f}"
             pprint(txt.format(s1=light_left, s2=light_right), 3)
 
-            if light_left < self.light_threshold and light_right < self.light_threshold:
-                drive.move_forward()
-                pprint("FORWARD BLACK", 2)
-            elif light_left >= self.light_threshold and light_right >= self.light_threshold:
-                drive.move_forward()
-                pprint("FORWARD WHITE", 2)
-            elif light_left < self.light_threshold and light_right >= self.light_threshold:
-                drive.move_turn_left()
-                pprint("TURN LEFT    ", 2)
-            elif light_left >= self.light_threshold and light_right < self.light_threshold:
-                drive.move_turn_right()
-                pprint("TURN RIGHT   ", 2)
+            # TODO Demock values here, test light, scale angle for correction
+            angle = pid.next(time, 1, 0)
+            drive.correct(angle)
 
-        #tank_drive.on_for_seconds(SpeedPercent(10), SpeedPercent(10), 3)
+            #if light_left < self.light_threshold and light_right < self.light_threshold:
+            #    drive.move_forward()
+            #    pprint("FORWARD BLACK", 2)
+            #elif light_left >= self.light_threshold and light_right >= self.light_threshold:
+            #    drive.move_forward()
+            #    pprint("FORWARD WHITE", 2)
+            #elif light_left < self.light_threshold and light_right >= self.light_threshold:
+            #    drive.move_turn_left()
+            #    pprint("TURN LEFT    ", 2)
+            #elif light_left >= self.light_threshold and light_right < self.light_threshold:
+            #    drive.move_turn_right()
+            #    pprint("TURN RIGHT   ", 2)
+            #tank_drive.on_for_seconds(SpeedPercent(10), SpeedPercent(10), 3)
+
+
+class PID:
+    def __init__(self, Pconst, Iconst, Dconst, init=0):
+        self.Pconst = Pconst
+        self.Iconst = Iconst
+        self.Dconst = Dconst
+        self.I = 0
+        self.init = init
+        self.error_last = 0
+        self.time_last = 0
+
+    def next(self, time_, wanted, real):
+        error = wanted - real
+
+        P = self.Pconst * error
+        self.I += self.Iconst * error * (time_ - self.time_last)
+        D = self.Dconst * (error - self.error_last) / (time_ - self.time_last)
+
+        val = self.init + P + self.I + D
+        self.time_last = time_
+        self.error_last = error
+        return val
 
 
 if __name__ == '__main__':

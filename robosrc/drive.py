@@ -41,6 +41,11 @@ class Drive:
         #self._right(self.lospeed)
         self.right_motor.on_for_rotations(SpeedPercent(self.hispeed), self.rotspeed)
         self.left_motor.on_for_rotations(SpeedPercent(self.lospeed), self.rotspeed)
+    
+    def correct(self, angle):
+        val = angle
+        self.left_motor.on_for_rotations(SpeedPercent(val), self.rotspeed, block=False)
+        self.right_motor.on_for_rotations(SpeedPercent(-val), self.rotspeed, block=False)
 
     def set_speeds(self, low_speed, normal_speed, high_speed):
         self.lospeed = low_speed
