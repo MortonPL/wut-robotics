@@ -1,18 +1,15 @@
 #!/usr/bin/ micropython
-from msilib.schema import Icon
 from ev3dev2.motor import OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D
 from ev3dev2.sensor import INPUT_1, INPUT_4
-from time import sleep, time
+from time import time
 import sys
 import signal
 
 from detector import Detector
 from drive import Drive
-
-
-def pprint(str, row=1, col=1, end='\n'):
-    print("\033[{row};{col}H".format(row=row,col=col))
-    print(str, end=end)
+from pid import PID
+from printer import pprint_action, pprint_action_move, pprint_args, pprint_layout, pprint_sensor
+from robosrc.printer import pprint_color
 
 def signal_handler(signal, frame):
     print('You pressed Ctrl+C!')
@@ -26,6 +23,8 @@ class Robot:
     slow_speed = 5
     high_speed = 10
     rot_speed = 0.01
+    drive = Drive(None, None)
+    detector = Detector(None, None)
 
     def parse_args(self):
         self.light_threshold = int(sys.argv[1])
@@ -34,65 +33,50 @@ class Robot:
         self.high_speed = int(sys.argv[4])
         self.rot_speed = float(sys.argv[5])
 
-    def main(self, drive, detector):
-        #tank_drive = MoveTank(OUTPUT_A, OUTPUT_D)
-        pid = PID(Pconst=1, Iconst=1, Dconst=1)
+    def register(self, drive, detector):
+        self.drive = drive
+        self.detector = detector
+    
+    def calibrate(self):
+        pprint_action("START STOCK CALIBRATION ?")
+        input()
+        self.detector.calibrate_white()
+        for mode in ['WHITE ', 'BLACK ', 'SOURCE', 'TARGET']:
+            pprint_action("START {0} CALIBRATION ?".format(mode))
+            input()
+            self.detector.calibrate(mode)
+        
+    def main(self):
+        pid = PID(Kp=1, Ki=1, Kd=1)
 
         while True:
-            light_left = detector.left()
-            light_right = detector.right()
-            txt = "{s1:.2f}, {s2:.2f}"
-            pprint(txt.format(s1=light_left, s2=light_right), 3)
+            # Reading sensors
+            left_rgb = self.detector.left.rgb
+            right_rgb = self.detector.right.rgb
+            pprint_sensor(left_rgb, right_rgb)
 
-            # TODO Demock values here, test light, scale angle for correction
+            # Color detection - Euclidan distance in bounded 3D color space
+            pprint_color('UNKNOWN')
+
+            # Pid and steering control
             angle = pid.next(time, 1, 0)
-            drive.correct(angle)
 
-            #if light_left < self.light_threshold and light_right < self.light_threshold:
-            #    drive.move_forward()
-            #    pprint("FORWARD BLACK", 2)
-            #elif light_left >= self.light_threshold and light_right >= self.light_threshold:
-            #    drive.move_forward()
-            #    pprint("FORWARD WHITE", 2)
-            #elif light_left < self.light_threshold and light_right >= self.light_threshold:
-            #    drive.move_turn_left()
-            #    pprint("TURN LEFT    ", 2)
-            #elif light_left >= self.light_threshold and light_right < self.light_threshold:
-            #    drive.move_turn_right()
-            #    pprint("TURN RIGHT   ", 2)
-            #tank_drive.on_for_seconds(SpeedPercent(10), SpeedPercent(10), 3)
-
-
-class PID:
-    def __init__(self, Pconst, Iconst, Dconst, init=0):
-        self.Pconst = Pconst
-        self.Iconst = Iconst
-        self.Dconst = Dconst
-        self.I = 0
-        self.init = init
-        self.error_last = 0
-        self.time_last = 0
-
-    def next(self, time_, wanted, real):
-        error = wanted - real
-
-        P = self.Pconst * error
-        self.I += self.Iconst * error * (time_ - self.time_last)
-        D = self.Dconst * (error - self.error_last) / (time_ - self.time_last)
-
-        val = self.init + P + self.I + D
-        self.time_last = time_
-        self.error_last = error
-        return val
+            pprint_action_move(angle)
+            
+            # Driving
+            self.drive.correct(angle)
 
 
 if __name__ == '__main__':
+    pprint_layout()
     signal.signal(signal.SIGINT, signal_handler)
-    print('OK JAZDA')
     r = Robot()
     if (len(sys.argv) > 1):
         r.parse_args()
-    pprint("lo:{a} med:{b} hi:{c} rot:{d}".format(a=r.slow_speed, b=r.normal_speed, c=r.high_speed, d=r.rot_speed), 1)
+    pprint_args(r.slow_speed, r.normal_speed, r.high_speed, r.rot_speed)
+
     drive = Drive(OUTPUT_A, OUTPUT_D, r.slow_speed, r.normal_speed, r.high_speed, r.rot_speed)
     detector = Detector(INPUT_1, INPUT_4)
-    r.main(drive, detector)
+    r.register(drive, detector)
+    r.calibrate()
+    r.main()
