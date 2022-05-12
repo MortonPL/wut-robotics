@@ -1,5 +1,5 @@
-ARROWS_L = ['    ◁', '   ◁◁', '  ◁◁◁', ' ◁◁◁◁', '◁◁◁◁◁', '◁◁◁◁◀', '◁◁◁◀◀', '◁◁◀◀◀', '◁◀◀◀◀', '◀◀◀◀◀']
-ARROWS_R = ['▷    ', '▷▷   ', '▷▷▷  ', '▷▷▷▷ ', '▷▷▷▷▷', '▶▷▷▷▷', '▶▶▷▷▷', '▶▶▶▷▷', '▶▶▶▶▷', '▶▶▶▶▶']
+ARROWS_L = ['◁◁◁◁◀', '◁◁◁◀◀', '◁◁◀◀◀', '◁◀◀◀◀', '◀◀◀◀◀', '◀◀◀◀◀']
+ARROWS_R = ['▶▷▷▷▷', '▶▶▷▷▷', '▶▶▶▷▷', '▶▶▶▶▷', '▶▶▶▶▶', '▶▶▶▶▶']
 
 def pprint(str, row=1, col=1, end=''):
     print("\033[{};{}H".format(row, col), end='')
@@ -9,19 +9,17 @@ def pprint(str, row=1, col=1, end=''):
 def pprint_action(str):
     pprint("{:37}".format(str), row=10, col=3)
 
-def pprint_action_move(val):
-    if val > 20:
-        #pprint_action("STEERING RIGHT      ={} {}".format(ARROWS_R[val//10], val))
-        pprint_action("RIGHT {}".format(val))
-    elif val < -20:
-        #pprint_action("STEERING LEFT  {}=      {}".format(ARROWS_L[abs(val)//10], abs(val)))
-        pprint_action("LEFT {}".format(val))
+def pprint_action_move(val, spddiv, minspd):
+    if val > minspd:
+        pprint_action("STEERING RIGHT ◁◁◁◁◁={} {}".format(ARROWS_R[int(val)//spddiv], val))
+    elif val < minspd:
+        pprint_action("STEERING LEFT  {}=▷▷▷▷▷ {}".format(ARROWS_L[abs(int(val))//spddiv], abs(val)))
     else:
         pprint_action("GOING FORWARD {}".format(val))
 
-def pprint_args(slow, normal, high, rot):
-    pprint("lo:{} med:{} hi:{} rot:{}"
-        .format(slow, normal, high, rot), row=2, col=3)
+def pprint_args(divspeed, minspeed, defspeed):
+    pprint("spd: {} min: {} def: {}"
+        .format(divspeed, minspeed, defspeed), row=2, col=3)
 
 def pprint_color(color):
     pprint(color, row=4, col=9)
@@ -64,7 +62,7 @@ if __name__ == "__main__":
     from clock import tps, avgtps
 
     pprint_layout()
-    pprint_args(10, 20, 30, 0.01)
+    pprint_args(10, 1, 3)
     pprint_color("WHITE ")
     pprint_sensor((255, 255, 255), (0, 0, 255))
 
@@ -75,6 +73,6 @@ if __name__ == "__main__":
 
     for i in range(200):
         t = time()
-        pprint_action_move(i-100)
+        pprint_action_move(i-100, 2, 1)
         tps_ = tpser.send(t) # type: ignore
         pprint_time(tps_, avger.send(tps_))

@@ -18,21 +18,17 @@ def signal_handler(signal, frame):
 
 class Robot:
     # Globals zone
-    light_threshold = 20
-    normal_speed = 20
-    slow_speed = 5
-    high_speed = 10
-    rot_speed = 0.0001
     drive = Drive(None, None)
     detector = Detector(None, None)
+    speeddiv = 10
+    minspeed = 1
+    defspeed = 3
 
     def parse_args(self):
         if (len(sys.argv) > 1):
-            self.light_threshold = int(sys.argv[1])
-            self.normal_speed = int(sys.argv[2])
-            self.slow_speed = int(sys.argv[3])
-            self.high_speed = int(sys.argv[4])
-            self.rot_speed = float(sys.argv[5])
+            self.speeddiv = int(sys.argv[1])
+            self.minspeed = int(sys.argv[2])
+            self.defspeed = int(sys.argv[3])
 
     def register(self, drive, detector):
         self.drive = drive
@@ -58,28 +54,32 @@ class Robot:
         avger.send(None)
         pid.first(time())
 
-        while True:
-            tick = time()
+        try:
+            while True:
+                tick = time()
 
-            # Reading sensors
-            pprint_sensor(self.detector.left.rgb, self.detector.right.rgb)
-            e = self.detector.get_distance()
-            print(e)
+                # Reading sensors
+                pprint_sensor(self.detector.left.rgb, self.detector.right.rgb)
+                e = self.detector.get_distance()
+                print(e)
 
-            # Color detection - Euclidan distance in bounded 3D color space
-            pprint_color('UNKNOWN')
+                # Color detection - Cartesian distance in bounded 3D color space
+                pprint_color('UNKNOWN')
 
-            # Pid and steering control
-            angle = pid.next(tick, 0, e) / 2
+                # Pid and steering control
+                angle = pid.next(tick, 0, e) / 7
+                val = max(min(angle, 100), -100) / self.speeddiv # clamp to [-100, 100] and scale to [-10, 10]
 
-            pprint_action_move(angle)
-            
-            # Driving
-            self.drive.correct(angle)
+                pprint_action_move(val, self.speeddiv//5, self.minspeed)
+                
+                # Driving
+                self.drive.correct(val)
 
-            tps_ = tpser.send(tick) # type: ignore
-            pprint_time(tps_, avger.send(tps_))
-            sleep(0.1)
+                tps_ = tpser.send(tick) # type: ignore
+                pprint_time(tps_, avger.send(tps_))
+        except Exception as e:
+            drive.stop()
+            raise e
 
 
 if __name__ == '__main__':
@@ -87,9 +87,10 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     r = Robot()
     r.parse_args()
-    pprint_args(r.slow_speed, r.normal_speed, r.high_speed, r.rot_speed)
+    pprint_args(r.speeddiv, r.minspeed, r.defspeed)
 
-    drive = Drive(OUTPUT_A, OUTPUT_D, r.slow_speed, r.normal_speed, r.high_speed, r.rot_speed)
+    drive = Drive(OUTPUT_A, OUTPUT_D, r.minspeed, r.defspeed)
+    drive.stop()
     detector = Detector(INPUT_1, INPUT_4)
     r.register(drive, detector)
     r.calibrate()
