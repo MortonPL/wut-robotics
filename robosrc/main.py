@@ -5,11 +5,11 @@ from time import time
 import sys
 import signal
 
-from detector import Detector
-from drive import Drive
-from pid import PID
-from printer import pprint_action, pprint_action_move, pprint_args, pprint_layout, pprint_sensor
-from robosrc.printer import pprint_color
+from robosrc.clock import tps, avgtps
+from robosrc.detector import Detector
+from robosrc.drive import Drive
+from robosrc.pid import PID
+from robosrc.printer import pprint_action, pprint_action_move, pprint_args, pprint_color, pprint_layout, pprint_sensor, pprint_time
 
 def signal_handler(signal, frame):
     print('You pressed Ctrl+C!')
@@ -49,7 +49,14 @@ class Robot:
     def main(self):
         pid = PID(Kp=1, Ki=1, Kd=1)
 
+        tpser = tps(time())
+        avger = avgtps()
+        tpser.send(None)
+        avger.send(None)
+
         while True:
+            tick = time()
+
             # Reading sensors
             left_rgb = self.detector.left.rgb
             right_rgb = self.detector.right.rgb
@@ -59,12 +66,15 @@ class Robot:
             pprint_color('UNKNOWN')
 
             # Pid and steering control
-            angle = pid.next(time, 1, 0)
+            angle = pid.next(tick, 1, 0)
 
             pprint_action_move(angle)
             
             # Driving
             self.drive.correct(angle)
+
+            tps_ = tpser.send(t) # type: ignore
+            pprint_time(tps_, avger.send(tps_))
 
 
 if __name__ == '__main__':
