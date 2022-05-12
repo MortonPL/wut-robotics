@@ -6,11 +6,14 @@ class PID:
         self.I = 0
         self.target_val = target_val
         self.error_last = 0
-        self.time_last = -100
+        self.time_last = 0
         self.val = 0
 
+    def first(self, time_):
+        self.time_last = time_
+
     def next(self, time_, wanted, real):
-        error = wanted - real
+        error = wanted + real
 
         P = self.Kp * error
         self.I += self.Ki * error * (time_ - self.time_last)

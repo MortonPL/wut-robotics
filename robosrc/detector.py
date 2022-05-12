@@ -1,10 +1,18 @@
 from ev3dev2.sensor.lego import ColorSensor
+from math import sqrt
+
+def tupleadd(tup1, tup2):
+    return (tup1[0] + tup2[0], tup1[1] + tup2[1], tup1[2] + tup2[2])
 
 def tuplemul(tup, num):
     return tuple(x * num for x in tup)
 
 def tuplediv(tup, num):
     return tuple(x / num for x in tup)
+
+def dist3d(tup1, tup2):
+    return sqrt((tup1[0] - tup2[0])**2 + (tup1[1] - tup2[1])**2 + (tup1[2] - tup2[2])**2)
+
 
 class Detector:
     left = ColorSensor()
@@ -13,7 +21,7 @@ class Detector:
     black = (0, 0, 0)
     source = (0, 0, 0)
     target = (0, 0, 0)
-    sampling_size = 100
+    sampling_size = 10
 
     def __init__(self, left_color_sensor_addr, right_color_sensor_addr):
         self.left = ColorSensor(left_color_sensor_addr)
@@ -24,15 +32,21 @@ class Detector:
         self.right.calibrate_white()
 
     def calibrate(self, mode):
-        array = [(0, 0, 0)] * self.sampling_size
-        for i in range(self.sampling_size):
-            array[i] = tuplemul(self.left.rgb + self.right.rgb, self.sampling_size)
+        y = (0,0,0)
 
-        if mode == "white":
-            self.white = tuplediv(sum(array), len(array))
-        elif mode == "black":
-            self.black = tuplediv(sum(array), len(array))
-        elif mode == "source":
-            self.source = tuplediv(sum(array), len(array))
-        elif mode == "target":
-            self.target = tuplediv(sum(array), len(array))
+        for i in range(self.sampling_size):
+            y = tupleadd(tuplediv(tupleadd(self.left.rgb, self.right.rgb), 2), y)
+
+        if mode == "WHITE":
+            self.white = tuplediv(y, self.sampling_size)
+        elif mode == "BLACK":
+            self.black = tuplediv(y, self.sampling_size)
+        elif mode == "SOURCE":
+            self.source = tuplediv(y, self.sampling_size)
+        elif mode == "TARGET":
+            self.target = tuplediv(y, self.sampling_size)
+
+    def get_distance(self):
+        l = dist3d(self.left.rgb, self.black)
+        r = dist3d(self.right.rgb, self.black)
+        return r - l

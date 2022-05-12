@@ -39,6 +39,11 @@ class Drive:
         self.left_motor.on_for_rotations(SpeedPercent(self.lospeed), self.rotspeed)
     
     def correct(self, angle):
-        val = min(max(angle / 2, self.hispeed), -self.lospeed)
-        self.left_motor.on_for_rotations(SpeedPercent(val), self.rotspeed, block=False)
-        self.right_motor.on_for_rotations(SpeedPercent(-val), self.rotspeed, block=False)
+        val = max(min(angle, 100), -100)
+        val1 = val
+        val2 = val
+        if abs(val) < 20:
+            val1 = 200
+            val2 = -200
+        self.left_motor.on_for_rotations(SpeedPercent(self.hispeed), -self.rotspeed * val1, block=False)
+        self.right_motor.on_for_rotations(SpeedPercent(self.hispeed), self.rotspeed * val2, block=False)

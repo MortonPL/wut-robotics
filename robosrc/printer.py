@@ -7,16 +7,17 @@ def pprint(str, row=1, col=1, end=''):
     print("\033[12;3H")
 
 def pprint_action(str):
-    pprint(str, row=10, col=3)
+    pprint("{:37}".format(str), row=10, col=3)
 
 def pprint_action_move(val):
-    val = min(max(val, -99), 99)
-    if val > 0:
-        pprint_action("STEERING RIGHT      ={} {}".format(ARROWS_R[val//10], val))
-    elif val < 0:
-        pprint_action("STEERING LEFT  {}=      {}".format(ARROWS_L[abs(val)//10], abs(val)))
+    if val > 20:
+        #pprint_action("STEERING RIGHT      ={} {}".format(ARROWS_R[val//10], val))
+        pprint_action("RIGHT {}".format(val))
+    elif val < -20:
+        #pprint_action("STEERING LEFT  {}=      {}".format(ARROWS_L[abs(val)//10], abs(val)))
+        pprint_action("LEFT {}".format(val))
     else:
-        pprint_action("GOING FORWARD       ")
+        pprint_action("GOING FORWARD {}".format(val))
 
 def pprint_args(slow, normal, high, rot):
     pprint("lo:{} med:{} hi:{} rot:{}"
@@ -60,7 +61,7 @@ def pprint_layout():
 
 if __name__ == "__main__":
     from time import sleep, time
-    from robosrc.clock import tps, avgtps
+    from clock import tps, avgtps
 
     pprint_layout()
     pprint_args(10, 20, 30, 0.01)
@@ -75,6 +76,5 @@ if __name__ == "__main__":
     for i in range(200):
         t = time()
         pprint_action_move(i-100)
-        sleep(0.1)
         tps_ = tpser.send(t) # type: ignore
         pprint_time(tps_, avger.send(tps_))
