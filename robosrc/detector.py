@@ -47,6 +47,4 @@ class Detector:
             self.target = tuplediv(y, self.sampling_size)
 
     def get_distance(self):
-        l = dist3d(self.left.rgb, self.black)
-        r = dist3d(self.right.rgb, self.black)
-        return r - l
+        return dist3d(self.left.rgb, self.black), dist3d(self.right.rgb, self.black)

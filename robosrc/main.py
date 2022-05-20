@@ -20,9 +20,9 @@ class Robot:
     # Globals zone
     drive = Drive(None, None)
     detector = Detector(None, None)
-    speeddiv = 10
+    speeddiv = 5
     minspeed = 1
-    defspeed = 3
+    defspeed = 5
 
     def parse_args(self):
         if (len(sys.argv) > 1):
@@ -46,13 +46,15 @@ class Robot:
             self.detector.calibrate(mode)
         
     def main(self):
-        pid = PID(Kp=1, Ki=0, Kd=0)
+        pid_left = PID(Kp=1, Ki=0, Kd=0)
+        pid_right = PID(Kp=1, Ki=0, Kd=0)
 
         tpser = tps(time())
         avger = avgtps()
         tpser.send(None)
         avger.send(None)
-        pid.first(time())
+        pid_left.first(time())
+        pid_right.first(time())
 
         try:
             while True:
@@ -60,20 +62,22 @@ class Robot:
 
                 # Reading sensors
                 pprint_sensor(self.detector.left.rgb, self.detector.right.rgb)
-                e = self.detector.get_distance()
-                print(e)
+                el, er = self.detector.get_distance()
 
                 # Color detection - Cartesian distance in bounded 3D color space
                 pprint_color('UNKNOWN')
 
                 # Pid and steering control
-                angle = pid.next(tick, 0, e) / 7
-                val = max(min(angle, 100), -100) / self.speeddiv # clamp to [-100, 100] and scale to [-10, 10]
+                angle_left = pid_left.next(tick, 0, el) / 7
+                angle_right = pid_right.next(tick, 0, er) / 7
+                val_left = max(min(angle_left, 100), -100) / self.speeddiv # clamp to [-100, 100] and scale to [-20, 20]
+                val_right = max(min(angle_right, 100), -100) / self.speeddiv # clamp to [-100, 100] and scale to [-20, 20]
 
-                pprint_action_move(val, self.speeddiv//5, self.minspeed)
-                
+                # pprint_action_move(val_left, self.speeddiv//5, self.minspeed)
+                print(val_left, val_right)
+
                 # Driving
-                self.drive.correct(val)
+                self.drive.correct(val_left, val_right)
 
                 tps_ = tpser.send(tick) # type: ignore
                 pprint_time(tps_, avger.send(tps_))
@@ -89,9 +93,9 @@ if __name__ == '__main__':
     r.parse_args()
     pprint_args(r.speeddiv, r.minspeed, r.defspeed)
 
-    drive = Drive(OUTPUT_A, OUTPUT_D, r.minspeed, r.defspeed)
+    drive = Drive(OUTPUT_D, OUTPUT_A, r.minspeed, r.defspeed)
     drive.stop()
-    detector = Detector(INPUT_1, INPUT_4)
+    detector = Detector(INPUT_4, INPUT_1)
     r.register(drive, detector)
     r.calibrate()
     pprint_action("\u001b[31mSTART ROBOT ?\u001b[0m")

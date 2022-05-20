@@ -22,11 +22,9 @@ class Drive:
     def _right(self, speed):
         self.right_motor.on(speed)
     
-    def correct(self, val):
-        val1 = val
-        val2 = val
-        if abs(val) <= self.minspeed:
-            val1 = self.defspeed
-            val2 = -self.defspeed
-        self._left(SpeedPercent(-val1))
-        self._right(SpeedPercent(val2))
+    def correct(self, lval, rval):
+        #if (lval < self.minspeed and rval < self.minspeed):
+        #    lval = self.defspeed
+        #    rval = self.defspeed
+        self._left(SpeedPercent(-lval))
+        self._right(SpeedPercent(-rval))
