@@ -23,8 +23,5 @@ class Drive:
         self.right_motor.on(speed)
     
     def correct(self, lval, rval):
-        #if (lval < self.minspeed and rval < self.minspeed):
-        #    lval = self.defspeed
-        #    rval = self.defspeed
         self._left(SpeedPercent(-lval))
         self._right(SpeedPercent(-rval))

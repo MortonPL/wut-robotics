@@ -13,4 +13,3 @@ def avgtps():
         tps = yield sum_ / cnt_
         sum_ += tps
         cnt_ += 1
-

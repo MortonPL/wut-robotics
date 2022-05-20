@@ -9,7 +9,8 @@ from clock import tps, avgtps
 from detector import Detector
 from drive import Drive
 from pid import PID
-from printer import pprint, pprint_action, pprint_action_move, pprint_args, pprint_color, pprint_layout, pprint_sensor, pprint_time
+from printer import pprint, pprint_action, pprint_action_move, pprint_args, pprint_vals, pprint_layout, pprint_rawcolor, pprint_time
+from robosrc.printer import pprint_errors
 
 def signal_handler(signal, frame):
     print('You pressed Ctrl+C!')
@@ -56,16 +57,19 @@ class Robot:
         pid_left.first(time())
         pid_right.first(time())
 
+        z = int((100 / self.speeddiv) / 5)
+
         try:
             while True:
                 tick = time()
 
                 # Reading sensors
-                pprint_sensor(self.detector.left.rgb, self.detector.right.rgb)
+                pprint_rawcolor(self.detector.left.rgb, self.detector.right.rgb) # # PRINTPRINT
                 el, er = self.detector.get_distance()
+                pprint_errors(el, er) # # PRINTPRINT
 
                 # Color detection - Cartesian distance in bounded 3D color space
-                pprint_color('UNKNOWN')
+                # pprint_color('UNKNOWN')
 
                 # Pid and steering control
                 angle_left = pid_left.next(tick, 0, el) / 7
@@ -73,14 +77,14 @@ class Robot:
                 val_left = max(min(angle_left, 100), -100) / self.speeddiv # clamp to [-100, 100] and scale to [-20, 20]
                 val_right = max(min(angle_right, 100), -100) / self.speeddiv # clamp to [-100, 100] and scale to [-20, 20]
 
-                # pprint_action_move(val_left, self.speeddiv//5, self.minspeed)
-                print(val_left, val_right)
+                pprint_vals(val_left, val_right) # # PRINTPRINT
+                pprint_action_move(val_left, val_right, z) # # PRINTPRINT
 
                 # Driving
                 self.drive.correct(val_left, val_right)
 
                 tps_ = tpser.send(tick) # type: ignore
-                pprint_time(tps_, avger.send(tps_))
+                pprint_time(tps_, avger.send(tps_)) # # PRINTPRINT
         except Exception as e:
             drive.stop()
             raise e
