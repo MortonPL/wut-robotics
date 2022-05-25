@@ -22,6 +22,7 @@ class Detector:
     source = (0, 0, 0)
     target = (0, 0, 0)
     sampling_size = 10
+    color = black
 
     def __init__(self, left_color_sensor_addr, right_color_sensor_addr):
         self.left = ColorSensor(left_color_sensor_addr)
@@ -47,4 +48,10 @@ class Detector:
             self.target = tuplediv(y, self.sampling_size)
 
     def get_distance(self):
-        return dist3d(self.left.rgb, self.black), dist3d(self.right.rgb, self.black)
+        return dist3d(self.left.rgb, self.color), dist3d(self.right.rgb, self.color)
+
+    def find_color(self):
+        lblack, rblack = dist3d(self.left.rgb, self.black), dist3d(self.right.rgb, self.black)
+        lsource, rsource = dist3d(self.left.rgb, self.source), dist3d(self.right.rgb, self.source)
+        ltarget, rtarget = dist3d(self.left.rgb, self.target), dist3d(self.right.rgb, self.target)
+        

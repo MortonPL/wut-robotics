@@ -24,11 +24,11 @@ def pprint_action_move(lval, rval, z):
         rstring = "{}".format(ARROWS_BR[ir])
     else:
         rstring = "{}".format(ARROWS_FR[ir])
-    pprint("{}={}".format(lstring, rstring), row=10, col=3)
+    pprint_action("{}={}".format(lstring, rstring))
 
-def pprint_args(divspeed, minspeed, defspeed):
-    pprint("spd: {} min: {} def: {}"
-        .format(divspeed, minspeed, defspeed), row=2, col=3)
+def pprint_args(mode, divspeed, minspeed, defspeed):
+    pprint("mode: {} div: {} min: {} def: {}"
+        .format(mode, divspeed, minspeed, defspeed), row=2, col=3)
 
 def pprint_color(color):
     pprint(color, row=4, col=9)
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     from clock import tps, avgtps
 
     pprint_layout()
-    pprint_args(10, 1, 3)
+    pprint_args("black", 10, 1, 3)
     # pprint_color("WHITE ")
     pprint_errors(0, 10)
     pprint_vals(0.11, 10.9438)
