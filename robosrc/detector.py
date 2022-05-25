@@ -21,7 +21,7 @@ class Detector:
     black = (0, 0, 0)
     source = (0, 0, 0)
     target = (0, 0, 0)
-    sampling_size = 10
+    SAMPLING_SIZE = 10
     color = black
 
     def __init__(self, left_color_sensor_addr, right_color_sensor_addr):
@@ -35,17 +35,17 @@ class Detector:
     def calibrate(self, mode):
         y = (0,0,0)
 
-        for i in range(self.sampling_size):
+        for i in range(self.SAMPLING_SIZE):
             y = tupleadd(tuplediv(tupleadd(self.left.rgb, self.right.rgb), 2), y)
 
         if mode == "WHITE":
-            self.white = tuplediv(y, self.sampling_size)
+            self.white = tuplediv(y, self.SAMPLING_SIZE)
         elif mode == "BLACK":
-            self.black = tuplediv(y, self.sampling_size)
+            self.black = tuplediv(y, self.SAMPLING_SIZE)
         elif mode == "SOURCE":
-            self.source = tuplediv(y, self.sampling_size)
+            self.source = tuplediv(y, self.SAMPLING_SIZE)
         elif mode == "TARGET":
-            self.target = tuplediv(y, self.sampling_size)
+            self.target = tuplediv(y, self.SAMPLING_SIZE)
 
     def get_distance(self):
         return dist3d(self.left.rgb, self.color), dist3d(self.right.rgb, self.color)

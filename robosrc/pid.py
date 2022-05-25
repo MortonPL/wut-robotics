@@ -7,7 +7,6 @@ class PID:
         self.target_val = target_val
         self.error_last = 0
         self.time_last = 0
-        self.val = 0
 
     def first(self, time_):
         self.time_last = time_
