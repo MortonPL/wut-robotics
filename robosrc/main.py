@@ -18,9 +18,11 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--mode', action='store', nargs='?',
                         choices=['black', 'color'], default='black', help='mode of action')
     parser.add_argument('--def-speed', action='store', nargs='?',
-                        default=5, type=float, help='default speed')
+                        default=7, type=float, help='default speed')
     parser.add_argument('--turn-mod', action='store', nargs='?',
-                        default=3, type=float, help='turn modifier')
+                        default=1.7, type=float, help='turn modifier')
+    parser.add_argument('--turn-flat', action='store', nargs='?',
+                        default=1, type=float, help='turn modifier')
     parser.add_argument('--speed-div', action='store', nargs='?',
                         default=5, type=float, help='speed divider (higher means slower)')
     parser.add_argument('-p', '--printer', action='store', nargs='?',
@@ -41,7 +43,7 @@ if __name__ == '__main__':
 
     class Robot:
         # Globals zone
-        drive = Drive(None, None, None, None)
+        drive = Drive(None, None, None, None, None)
         detector = Detector(None, None)
         #button = TouchSensor()
         internal_mode = "go"
@@ -61,6 +63,7 @@ if __name__ == '__main__':
             self.speeddiv = args['speed_div']
             self.defspeed = args['def_speed']
             self.turnmod = args['turn_mod']
+            self.turnflat = args['turn_flat']
 
         def register_devices(self, drive, detector, button, printer):
             self.drive = drive
@@ -151,7 +154,7 @@ if __name__ == '__main__':
     r = Robot()
     r.get_args(args)
 
-    drive = Drive(OUTPUT_D, OUTPUT_A, r.defspeed, r.turnmod)
+    drive = Drive(OUTPUT_D, OUTPUT_A, r.defspeed, r.turnmod, r.turnflat)
     drive.stop()
     detector = Detector(INPUT_4, INPUT_1)
     #button = TouchSensor(INPUT_3)
