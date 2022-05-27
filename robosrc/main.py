@@ -18,7 +18,11 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--mode', action='store', nargs='?',
                         choices=['black', 'color'], default='black', help='mode of action')
     parser.add_argument('--def-speed', action='store', nargs='?',
-                        default=10, type=int, help='default speed')
+                        default=5, type=int, help='default speed')
+    parser.add_argument('--speed-div', action='store', nargs='?',
+                        default=5, type=int, help='speed divider (higher means slower)')
+    parser.add_argument('--min-speed', action='store', nargs='?',
+                        default=1, type=int, help='minimal speed')
     parser.add_argument('-p', '--printer', action='store', nargs='?',
                         choices=['mini', 'thin', 'pretty'], default='mini', help='extended (slow) diagnostics')
     args = vars(parser.parse_args())
@@ -39,6 +43,7 @@ if __name__ == '__main__':
         # Globals zone
         drive = Drive(None, None)
         detector = Detector(None, None)
+        button = TouchSensor()
         speeddiv = 5
         minspeed = 1
         defspeed = 5
@@ -57,8 +62,8 @@ if __name__ == '__main__':
 
         def get_args(self, args):
             self.mode = args['mode']
-            self.speeddiv = 0
-            self.minspeed = 0
+            self.speeddiv = args['speed_div']
+            self.minspeed = args['min_speed']
             self.defspeed = args['def_speed']
 
         def register_devices(self, drive, detector, button, printer):
