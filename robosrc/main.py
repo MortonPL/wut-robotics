@@ -2,15 +2,19 @@
 from ev3dev2.motor import OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D
 from ev3dev2.sensor import INPUT_1, INPUT_2, INPUT_3, INPUT_4
 from ev3dev2.sensor.lego import TouchSensor
-from time import time
+from ev3dev2.sensor.lego import InfraredSensor
+from time import time, sleep
 import sys
 import signal
 import argparse
+
+from ev3dev2.motor import SpeedPercent
 
 from clock import tps, avgtps
 from detector import Detector
 from drive import Drive
 from pid import PID
+from claw import Claw
 
 if __name__ == '__main__':
     # parse input arguments
@@ -45,7 +49,9 @@ if __name__ == '__main__':
         # Globals zone
         drive = Drive(None, None, None, None, None)
         detector = Detector(None, None)
+        claw = Claw(None)
         #button = TouchSensor()
+        infraredSensor = InfraredSensor(INPUT_3)
         internal_mode = "go"
 
         # go           = follow black, seek source
@@ -65,11 +71,12 @@ if __name__ == '__main__':
             self.turnmod = args['turn_mod']
             self.turnflat = args['turn_flat']
 
-        def register_devices(self, drive, detector, button, printer):
+        def register_devices(self, drive, detector, button, printer, claw):
             self.drive = drive
             self.detector = detector
             self.button = button
             self.printer = printer
+            self.claw = claw
         
         def calibrate_colors(self):
             self.printer.print_action("\u001b[36mSTART\u001b[0m STOCK CALIBRATION ?")
@@ -122,6 +129,16 @@ if __name__ == '__main__':
         def main_color(self):
             pid_left, pid_right, tpser, avger, z = self.init()
 
+            self.claw.motor.on_for_rotations(SpeedPercent(20), 0.7)
+
+            while True:
+                self.claw.pick_up()
+                sleep(1)
+                self.claw.put_down()
+                sleep(1)
+
+            print(self.infraredSensor.proximity) # 7 - optimal distance; 22 - casual distance
+
             while True:
                 tick = time()
 
@@ -159,7 +176,7 @@ if __name__ == '__main__':
     detector = Detector(INPUT_4, INPUT_1)
     #button = TouchSensor(INPUT_3)
     button = None
-    r.register_devices(drive, detector, button, Printer())
+    r.register_devices(drive, detector, button, Printer(), Claw(OUTPUT_B))
     r.calibrate_colors()
     r.printer.print_action("\u001b[31mSTART ROBOT ?\u001b[0m")
     input()
