@@ -37,7 +37,7 @@ class Printer:
 
     def print_action(self, str):
         print("\033[6;12H", end='')
-        print("{:29}".format(str))
+        print("{:31}".format(str))
         print("\033[7;3H")
 
     def print_action_move(self, lval, rval, z):

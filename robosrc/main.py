@@ -18,11 +18,11 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--mode', action='store', nargs='?',
                         choices=['black', 'color'], default='black', help='mode of action')
     parser.add_argument('--def-speed', action='store', nargs='?',
-                        default=5, type=int, help='default speed')
+                        default=5, type=float, help='default speed')
+    parser.add_argument('--turn-mod', action='store', nargs='?',
+                        default=3, type=float, help='turn modifier')
     parser.add_argument('--speed-div', action='store', nargs='?',
-                        default=5, type=int, help='speed divider (higher means slower)')
-    parser.add_argument('--min-speed', action='store', nargs='?',
-                        default=1, type=int, help='minimal speed')
+                        default=5, type=float, help='speed divider (higher means slower)')
     parser.add_argument('-p', '--printer', action='store', nargs='?',
                         choices=['mini', 'thin', 'pretty'], default='mini', help='extended (slow) diagnostics')
     args = vars(parser.parse_args())
@@ -41,13 +41,9 @@ if __name__ == '__main__':
 
     class Robot:
         # Globals zone
-        drive = Drive(None, None)
+        drive = Drive(None, None, None, None)
         detector = Detector(None, None)
-        button = TouchSensor()
-        speeddiv = 5
-        minspeed = 1
-        defspeed = 5
-        mode = "black" # or "color"
+        #button = TouchSensor()
         internal_mode = "go"
 
         # go           = follow black, seek source
@@ -63,8 +59,8 @@ if __name__ == '__main__':
         def get_args(self, args):
             self.mode = args['mode']
             self.speeddiv = args['speed_div']
-            self.minspeed = args['min_speed']
             self.defspeed = args['def_speed']
+            self.turnmod = args['turn_mod']
 
         def register_devices(self, drive, detector, button, printer):
             self.drive = drive
@@ -84,8 +80,8 @@ if __name__ == '__main__':
                 self.detector.calibrate(mode)
 
         def init(self):
-            pid_left = PID(Kp=0.3, Ki=0, Kd=0)
-            pid_right = PID(Kp=0.3, Ki=0, Kd=0)
+            pid_left = PID(Kp=0.25, Ki=0, Kd=0)
+            pid_right = PID(Kp=0.25, Ki=0, Kd=0)
             tpser = tps(time())
             avger = avgtps()
             tpser.send(None)
@@ -146,6 +142,7 @@ if __name__ == '__main__':
                 robot.main_color()
         except Exception as e:
             drive.stop()
+            r.printer.jump_prompt()
             raise e
 
     ###################################################################
@@ -154,10 +151,11 @@ if __name__ == '__main__':
     r = Robot()
     r.get_args(args)
 
-    drive = Drive(OUTPUT_D, OUTPUT_A, r.minspeed, r.defspeed)
+    drive = Drive(OUTPUT_D, OUTPUT_A, r.defspeed, r.turnmod)
     drive.stop()
     detector = Detector(INPUT_4, INPUT_1)
-    button = TouchSensor(INPUT_3)
+    #button = TouchSensor(INPUT_3)
+    button = None
     r.register_devices(drive, detector, button, Printer())
     r.calibrate_colors()
     r.printer.print_action("\u001b[31mSTART ROBOT ?\u001b[0m")

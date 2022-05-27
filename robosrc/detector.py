@@ -22,7 +22,7 @@ class Detector:
     source = (0, 0, 0)
     target = (0, 0, 0)
     SAMPLING_SIZE = 10
-    color = black
+    color = white
 
     def __init__(self, left_color_sensor_addr, right_color_sensor_addr):
         self.left = ColorSensor(left_color_sensor_addr)

@@ -4,13 +4,12 @@ class Drive:
     left_motor = LargeMotor()
     right_motor = LargeMotor()
     minspeed = 1
-    defspeed = 3
 
-    def __init__(self, left_motor_addr, right_motor_addr, minspeed=1, defspeed=3):
+    def __init__(self, left_motor_addr, right_motor_addr, defspeed,turnmod):
         self.left_motor = LargeMotor(left_motor_addr)
         self.right_motor = LargeMotor(right_motor_addr)
-        self.minspeed = minspeed
         self.defspeed = defspeed
+        self.turnmod = turnmod
 
     def stop(self):
         self.left_motor.off()
@@ -22,6 +21,9 @@ class Drive:
     def _right(self, speed):
         self.right_motor.on(speed)
     
+    # defspeed 10 mnożnik 5
+
     def correct(self, lval, rval):
-        self._left(SpeedPercent(-lval))
-        self._right(SpeedPercent(-rval))
+        mod = abs(rval - lval) * self.turnmod
+        self._left(SpeedPercent(-(self.defspeed - rval*mod + rval)))
+        self._right(SpeedPercent(-(self.defspeed - lval*mod + lval)))
