@@ -8,7 +8,7 @@ class Printer:
         print("{:37}".format(str))
         print("\033[4;3H")
 
-    def print_action_move(self, lval, rval, z):
+    def print_action_move(self, lval, rval):
         print("\033[2;1H", end='')
         print("{} {}".format(lval, rval))
 

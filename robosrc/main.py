@@ -1,5 +1,5 @@
 #!/usr/bin/ micropython
-from ev3dev2.motor import OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D
+from ev3dev2.motor import OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D, MediumMotor, SpeedPercent
 from ev3dev2.sensor import INPUT_1, INPUT_2, INPUT_3, INPUT_4
 from ev3dev2.sensor.lego import TouchSensor
 from ev3dev2.sensor.lego import InfraredSensor
@@ -8,13 +8,12 @@ import sys
 import signal
 import argparse
 
-from ev3dev2.motor import SpeedPercent
-
 from clock import tps, avgtps
 from detector import Detector
 from drive import Drive
 from pid import PID
-from claw import Claw
+
+#######################################################################################
 
 if __name__ == '__main__':
     # parse input arguments
@@ -30,12 +29,10 @@ if __name__ == '__main__':
     parser.add_argument('--speed-div', action='store', nargs='?',
                         default=5, type=float, help='speed divider (higher means slower)')
     parser.add_argument('-p', '--printer', action='store', nargs='?',
-                        choices=['mini', 'thin', 'pretty'], default='mini', help='extended (slow) diagnostics')
+                        choices=['mini', 'thin'], default='mini', help='extended (slow) diagnostics')
     args = vars(parser.parse_args())
     # switch modes
-    if args['printer'] == 'pretty':
-        from prettyprinter import Printer
-    elif args['printer'] == 'thin':
+    if args['printer'] == 'thin':
         from thinprinter import Printer
     else:
         from minprinter import Printer
@@ -45,24 +42,16 @@ if __name__ == '__main__':
         drive.stop()
         sys.exit(0)
 
+#######################################################################################
+
     class Robot:
         # Globals zone
         drive = Drive(None, None, None, None, None)
         detector = Detector(None, None)
-        claw = Claw(None)
+        claw = MediumMotor(OUTPUT_B)
         #button = TouchSensor()
         infraredSensor = InfraredSensor(INPUT_3)
-        internal_mode = "go"
-
-        # go           = follow black, seek source
-        # found_source = follow source, await infrared contact
-        # contact      = stop, pick up object
-        # turn         = rotate 180 degrees
-        # picked       = follow source, seek black
-        # go_again     = follow black, seek target
-        # found_target = follow target just for a bit
-        # drop         = stop, put down object
-        # exit
+        state = "go"
 
         def get_args(self, args):
             self.mode = args['mode']
@@ -71,12 +60,11 @@ if __name__ == '__main__':
             self.turnmod = args['turn_mod']
             self.turnflat = args['turn_flat']
 
-        def register_devices(self, drive, detector, button, printer, claw):
+        def register_devices(self, drive, detector, button, printer):
             self.drive = drive
             self.detector = detector
             self.button = button
             self.printer = printer
-            self.claw = claw
         
         def calibrate_colors(self):
             self.printer.print_action("\u001b[36mSTART\u001b[0m STOCK CALIBRATION ?")
@@ -98,19 +86,119 @@ if __name__ == '__main__':
             avger.send(None)
             pid_left.first(time())
             pid_right.first(time())
-            z = int((100 / self.speeddiv) / 5)
-            return pid_left, pid_right, tpser, avger, z
+            return pid_left, pid_right, tpser, avger
+
+#######################################################################################
 
         def main_black(self):
-            pid_left, pid_right, tpser, avger, z = self.init()
+            pid_left, pid_right, tpser, avger = self.init()
             self.print_init()
-            
+            self.go_drive(pid_left, pid_right, tpser, avger, lambda _: False, 0)
+
+#######################################################################################
+        # 1 seek_source     = follow black, seek source
+        # 2 follow_source   = follow source up to the square
+        # 3 enter_source    = go forward, await infrared contact
+        # 4 contact         = stop, pick up object, rotate 180 degrees
+        # 5 exit_source     = go forward, await source line
+        # 6 follow_source_2 = follow source, seek black
+        # 7 seek_target     = follow black, seek target
+        # 8 follow_target   = follow target up to the square
+        # 9 enter_target    = go forward, a bit
+        # 10 drop           = stop, put down object
+
+        # 1 ==== 2/7 ======= 8 =======
+        #         S          T
+        #         S          T
+        #         S          T
+        #     SS 3/6 SS   TT 9  TT
+        #     SS 4/5 SS   TT 10 TT
+        #     SSSSSSSSS   TTTTTTTT
+
+
+        def main_color(self):
+            pid_left, pid_right, tpser, avger = self.init()
+
+            self.state_seek_source(pid_left, pid_right, tpser, avger)
+            self.state_follow_source(pid_left, pid_right, tpser, avger)
+            self.state_enter_source(pid_left, pid_right, tpser, avger)
+            self.state_contact()
+            self.state_exit_source(pid_left, pid_right, tpser, avger)
+            self.state_follow_source_2(pid_left, pid_right, tpser, avger)
+            self.state_seek_target(pid_left, pid_right, tpser, avger)
+            self.state_follow_target(pid_left, pid_right, tpser, avger)
+            self.state_enter_target(pid_left, pid_right, tpser, avger)
+            self.state_drop()
+
+            print(self.infraredSensor.proximity) # 7 - optimal distance; 22 - casual distance
+
+        # follow the line until you find source color
+        def state_seek_source(self, pid_left, pid_right, tpser, avger):
+            def cond(r):
+                sl, sr = r.detector.get_distance(1)
+                return sl < 100 or sr < 100                                    # TODO FIND GOODENOUGH VALUES
+            self.go_drive(pid_left, pid_right, tpser, avger, cond, 0)
+
+        # follow the source color until square
+        def state_follow_source(self, pid_left, pid_right, tpser, avger):
+            def cond(r):
+                sl, sr = r.detector.get_distance(1)
+                return sl < 100 and sr < 100                                   # TODO FIND GOODENOUGH VALUES
+            self.go_drive(pid_left, pid_right, tpser, avger, cond, 1)
+
+        # run forward until IR contact
+        def state_enter_source(self, pid_left, pid_right, tpser, avger):
+            def cond(r):
+                return abs(self.infraredSensor.proximity - 7) <= 0.5           # TODO FIND GOODENOUGH VALUES
+            self.go_drive(pid_left, pid_right, tpser, avger, cond, 1)
+
+        # grab the cargo, do a 180
+        def state_contact(self):
+            self.claw.on_for_rotations(SpeedPercent(-20), 0.5)                 # TODO FIND GOODENOUGH VALUES
+            self.drive.left_motor.on_for_rotations(SpeedPercent(-20), 1)       # TODO FIND GOODENOUGH VALUES
+            self.drive.right_motor.on_for_rotations(SpeedPercent(20), 1)       # TODO FIND GOODENOUGH VALUES
+
+        # seek end of the square
+        def state_exit_source(self, pid_left, pid_right, tpser, avger):
+            pass
+
+        # get out of source zone, seek black
+        def state_follow_source_2(self, pid_left, pid_right, tpser, avger):
+            def cond(r):
+                sl, sr = r.detector.get_distance(0)
+                return sl < 100 or sr < 100                                    # TODO FIND GOODENOUGH VALUES
+            self.go_drive(pid_left, pid_right, tpser, avger, cond, 1)
+
+        # follow the line again until you find target color
+        def state_seek_target(self, pid_left, pid_right, tpser, avger):
+            def cond(r):
+                sl, sr = r.detector.get_distance(2)
+                return sl < 100 or sr < 100                                    # TODO FIND GOODENOUGH VALUES
+            self.go_drive(pid_left, pid_right, tpser, avger, cond, 0)
+
+        # follow the target color until square
+        def state_follow_target(self, pid_left, pid_right, tpser, avger):
+            pass
+
+        # run forward for some time
+        def state_enter_target(self, pid_left, pid_right, tpser, avger):
+            pass
+
+        # drop the cargo, done
+        def state_drop(self):
+            pass
+
+#######################################################################################
+
+        def go_drive(self, pid_left, pid_right, tpser, avger, condition, color):
             while True:
                 tick = time()
 
-                # Reading sensors
-                # Color detection - Cartesian distance in bounded 3D color space
-                el, er = self.detector.get_distance()
+                if condition(self):
+                    return
+
+                # Reading color sensors
+                el, er = self.detector.get_distance(color)
 
                 # Pid and steering control
                 angle_left = pid_left.next(tick, 0, el) / 7
@@ -123,34 +211,17 @@ if __name__ == '__main__':
 
                 # Diagnostics
                 tps_ = tpser.send(tick) # type: ignore
-                self.print_all(el, er, val_left, val_right, z, tps_, avger.send(tps_))
-
-
-        def main_color(self):
-            pid_left, pid_right, tpser, avger, z = self.init()
-
-            self.claw.motor.on_for_rotations(SpeedPercent(20), 0.7)
-
-            while True:
-                self.claw.pick_up()
-                sleep(1)
-                self.claw.put_down()
-                sleep(1)
-
-            print(self.infraredSensor.proximity) # 7 - optimal distance; 22 - casual distance
-
-            while True:
-                tick = time()
+                self.print_all(el, er, val_left, val_right, tps_, avger.send(tps_))
 
         def print_init(self):
             self.printer.print_layout()
             self.printer.print_args(args)
 
-        def print_all(self, el, er, val_left, val_right, z, tps_, avg_):
+        def print_all(self, el, er, val_left, val_right, tps_, avg_):
             self.printer.print_rawcolor(self.detector.left.rgb, self.detector.right.rgb)
             self.printer.print_errors(el, er)
             self.printer.print_vals(val_left, val_right)
-            self.printer.print_action_move(val_left, val_right, z)
+            self.printer.print_action_move(val_left, val_right)
             self.printer.print_time(tps_, avg_)
 
 
@@ -165,7 +236,8 @@ if __name__ == '__main__':
             r.printer.jump_prompt()
             raise e
 
-    ###################################################################
+#######################################################################################
+
     # main body starts here
     signal.signal(signal.SIGINT, signal_handler)
     r = Robot()
@@ -176,7 +248,7 @@ if __name__ == '__main__':
     detector = Detector(INPUT_4, INPUT_1)
     #button = TouchSensor(INPUT_3)
     button = None
-    r.register_devices(drive, detector, button, Printer(), Claw(OUTPUT_B))
+    r.register_devices(drive, detector, button, Printer())
     r.calibrate_colors()
     r.printer.print_action("\u001b[31mSTART ROBOT ?\u001b[0m")
     input()

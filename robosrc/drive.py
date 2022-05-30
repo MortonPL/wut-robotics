@@ -21,10 +21,12 @@ class Drive:
 
     def _right(self, speed):
         self.right_motor.on(speed)
-    
-    # defspeed 10 mnożnik 5
 
     def correct(self, lval, rval):
         mod = abs(rval - lval) * self.turnmod + self.turnflat
         self._left(SpeedPercent(-(self.defspeed - rval*mod + lval)))
         self._right(SpeedPercent(-(self.defspeed - lval*mod + rval)))
+
+    def rotate(self):
+        self.left_motor.on_for_rotations(SpeedPercent(20), 1)
+        self.left_motor.on_for_rotations(SpeedPercent(20), 1)
