@@ -26,8 +26,6 @@ if __name__ == '__main__':
                         default=1.7, type=float, help='turn modifier')
     parser.add_argument('--turn-flat', action='store', nargs='?',
                         default=1, type=float, help='turn modifier')
-    parser.add_argument('--speed-div', action='store', nargs='?',
-                        default=5, type=float, help='speed divider (higher means slower)')
     parser.add_argument('-p', '--printer', action='store', nargs='?',
                         choices=['mini', 'thin'], default='mini', help='extended (slow) diagnostics')
     args = vars(parser.parse_args())
@@ -55,7 +53,6 @@ if __name__ == '__main__':
 
         def get_args(self, args):
             self.mode = args['mode']
-            self.speeddiv = args['speed_div']
             self.defspeed = args['def_speed']
             self.turnmod = args['turn_mod']
             self.turnflat = args['turn_flat']
@@ -134,43 +131,50 @@ if __name__ == '__main__':
 
         # follow the line until you find source color
         def state_seek_source(self, pid_left, pid_right, tpser, avger):
+            self.state = "seek_source"
             def cond(r):
                 sl, sr = r.detector.get_distance(1)
                 return sl < 100 or sr < 100                                    # TODO FIND GOODENOUGH VALUES
             self.go_drive(pid_left, pid_right, tpser, avger, cond, 0)
 
-        # follow the source color until square
+        # follow the source line until square
         def state_follow_source(self, pid_left, pid_right, tpser, avger):
+            self.state = "follow_source"
             def cond(r):
                 sl, sr = r.detector.get_distance(1)
                 return sl < 100 and sr < 100                                   # TODO FIND GOODENOUGH VALUES
-            self.go_drive(pid_left, pid_right, tpser, avger, cond, 1)
+            self.go_drive(pid_left, pid_right, tpser, avger, cond, 0)
 
         # run forward until IR contact
         def state_enter_source(self, pid_left, pid_right, tpser, avger):
+            self.state = "enter_source"
             def cond(r):
                 return abs(self.infraredSensor.proximity - 7) <= 0.5           # TODO FIND GOODENOUGH VALUES
             self.go_drive(pid_left, pid_right, tpser, avger, cond, 1)
 
         # grab the cargo, do a 180
         def state_contact(self):
+            self.state = "contact"
             self.claw.on_for_rotations(SpeedPercent(-20), 0.5)                 # TODO FIND GOODENOUGH VALUES
             self.drive.left_motor.on_for_rotations(SpeedPercent(-20), 1)       # TODO FIND GOODENOUGH VALUES
             self.drive.right_motor.on_for_rotations(SpeedPercent(20), 1)       # TODO FIND GOODENOUGH VALUES
 
         # seek end of the square
         def state_exit_source(self, pid_left, pid_right, tpser, avger):
+            self.state = "exit_source"
             pass
 
-        # get out of source zone, seek black
+        # get out of source zone, seek crossroad
         def state_follow_source_2(self, pid_left, pid_right, tpser, avger):
+            self.state = "follow_source_2"
             def cond(r):
-                sl, sr = r.detector.get_distance(0)
+                sl, sr = r.detector.get_distance(1)
                 return sl < 100 or sr < 100                                    # TODO FIND GOODENOUGH VALUES
-            self.go_drive(pid_left, pid_right, tpser, avger, cond, 1)
+            self.go_drive(pid_left, pid_right, tpser, avger, cond, 0)
 
         # follow the line again until you find target color
         def state_seek_target(self, pid_left, pid_right, tpser, avger):
+            self.state = "seek_target"
             def cond(r):
                 sl, sr = r.detector.get_distance(2)
                 return sl < 100 or sr < 100                                    # TODO FIND GOODENOUGH VALUES
@@ -178,37 +182,37 @@ if __name__ == '__main__':
 
         # follow the target color until square
         def state_follow_target(self, pid_left, pid_right, tpser, avger):
-            pass
+            self.state = "follow_target"
+            def cond(r):
+                sl, sr = r.detector.get_distance(2)
+                return sl < 100 and sr < 100                                   # TODO FIND GOODENOUGH VALUES
+            self.go_drive(pid_left, pid_right, tpser, avger, cond, 0)
 
         # run forward for some time
         def state_enter_target(self, pid_left, pid_right, tpser, avger):
-            pass
+            self.state = "enter_target"
+            self.drive.last_sprint()
 
         # drop the cargo, done
         def state_drop(self):
-            pass
+            self.state = "drop"
+            self.claw.on_for_rotations(SpeedPercent(20), 0.5)                 # TODO FIND GOODENOUGH VALUES
 
 #######################################################################################
 
         def go_drive(self, pid_left, pid_right, tpser, avger, condition, color):
             while True:
                 tick = time()
-
-                if condition(self):
-                    return
-
+                if condition(self): return
                 # Reading color sensors
                 el, er = self.detector.get_distance(color)
-
                 # Pid and steering control
                 angle_left = pid_left.next(tick, 0, el) / 7
                 angle_right = pid_right.next(tick, 0, er) / 7
-                val_left = max(min(angle_left, 100), -100) / self.speeddiv # clamp to [-100, 100] and scale to [-20, 20]
-                val_right = max(min(angle_right, 100), -100) / self.speeddiv # clamp to [-100, 100] and scale to [-20, 20]
-
+                val_left = max(min(angle_left, 100), -100) / 5 # clamp to [-100, 100] and scale to [-20, 20]
+                val_right = max(min(angle_right, 100), -100) / 5 # clamp to [-100, 100] and scale to [-20, 20]
                 # Driving
                 self.drive.correct(val_left, val_right)
-
                 # Diagnostics
                 tps_ = tpser.send(tick) # type: ignore
                 self.print_all(el, er, val_left, val_right, tps_, avger.send(tps_))
@@ -223,7 +227,7 @@ if __name__ == '__main__':
             self.printer.print_vals(val_left, val_right)
             self.printer.print_action_move(val_left, val_right)
             self.printer.print_time(tps_, avg_)
-
+            self.printer.print_state(self.state)
 
     def go_forth(robot):
         try:
@@ -232,7 +236,8 @@ if __name__ == '__main__':
             elif robot.mode == "color":
                 robot.main_color()
         except Exception as e:
-            drive.stop()
+            robot.drive.stop()
+            robot.claw.off()
             r.printer.jump_prompt()
             raise e
 

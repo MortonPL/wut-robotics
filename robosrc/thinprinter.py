@@ -38,14 +38,18 @@ class Printer:
     def print_action(self, str):
         print("\033[6;12H", end='')
         print("{:31}".format(str))
-        print("\033[7;3H")
 
     def print_action_move(self, lval, rval):
         print("\033[6;12H", end='')
         print("{}  {}".format(lval, rval))
 
+    def print_state(self, state):
+        print("\033[7;12H", end='')
+        print("{:31}".format(state))
+        print("\033[8;3H")
+
     def jump_prompt(self):
-        print("\033[7;3H", end='')
+        print("\033[8;3H", end='')
 
     def print_layout(self):
         print("\033[2J")
@@ -58,5 +62,6 @@ class Printer:
             'ERRORS     ___._______ | ___._______\n', # 4
             'CONTROLLER ___._______ | ___._______\n', # 5
             'ACTION                              \n', # 6
-            '>                               '])      # 7
+            'STATE                               \n', # 7
+            '>                               '])      # 8
         print(window)

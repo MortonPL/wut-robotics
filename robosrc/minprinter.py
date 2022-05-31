@@ -6,7 +6,6 @@ class Printer:
     def print_action(self, str):
         print("\033[2;1H", end='')
         print("{:37}".format(str))
-        print("\033[4;3H")
 
     def print_action_move(self, lval, rval):
         print("\033[2;1H", end='')
@@ -31,10 +30,13 @@ class Printer:
     def print_time(self, tps, avg):
         print("\033[3;1H")
         print("tps: {:>5.2f} avg: {:>5.2f}".format(tps, avg))
-        print("\033[4;3H")
-    
+
+    def print_state(self, state):
+        print("\033[4;1H", end='')
+        print("{:37}".format(state))
+
     def jump_prompt(self):
-        print("\033[4;3H", end='')
+        print("\033[5;3H", end='')
 
     def print_layout(self):
         print("\033[2J")
@@ -43,5 +45,6 @@ class Printer:
             '\n',                                # 1
             '\n',                                # 2
             '\n',                                # 3
-            '>                               ']) # 4
+            '\n',                                # 4
+            '>                               ']) # 5
         print(window)

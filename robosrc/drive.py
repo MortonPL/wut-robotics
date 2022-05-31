@@ -29,4 +29,8 @@ class Drive:
 
     def rotate(self):
         self.left_motor.on_for_rotations(SpeedPercent(20), 1)
-        self.left_motor.on_for_rotations(SpeedPercent(20), 1)
+        self.right_motor.on_for_rotations(SpeedPercent(-20), 1)
+
+    def last_sprint(self):
+        self.left_motor.on_for_rotations(SpeedPercent(10), 1)
+        self.right_motor.on_for_rotations(SpeedPercent(10), 1)
