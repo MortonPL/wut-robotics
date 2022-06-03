@@ -35,9 +35,13 @@ class Drive:
             self.right_motor.on_for_rotations(SpeedPercent(-30), 1)
 
     def rotate180(self):
-        self.left_motor.on_for_rotations(SpeedPercent(30), 1)
+        self.left_motor.on_for_rotations(SpeedPercent(30), 1, block=False)
         self.right_motor.on_for_rotations(SpeedPercent(-30), 1)
 
     def last_sprint(self):
-        self.left_motor.on_for_rotations(SpeedPercent(10), 1)
-        self.right_motor.on_for_rotations(SpeedPercent(10), 1)
+        self.left_motor.on_for_rotations(SpeedPercent(10), 0.5)
+        self.right_motor.on_for_rotations(SpeedPercent(10), 0.5)
+
+    def short_sprint(self):
+        self.left_motor.on_for_rotations(SpeedPercent(10), 0.2)
+        self.right_motor.on_for_rotations(SpeedPercent(10), 0.2)

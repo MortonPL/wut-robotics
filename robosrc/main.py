@@ -115,6 +115,7 @@ if __name__ == '__main__':
 
         def main_color(self):
             pid_left, pid_right, tpser, avger = self.init()
+            self.claw.on_to_position(SpeedPercent(-10), 0)
 
             l, r = self.state_seek_source(pid_left, pid_right, tpser, avger)
             side = 'l'
@@ -122,6 +123,20 @@ if __name__ == '__main__':
                 side = 'r'
             self.state_rotate_90(pid_left, pid_right, tpser, avger, side)
             self.state_follow_source(pid_left, pid_right, tpser, avger)
+            self.state_enter_source(pid_left, pid_right, tpser, avger)
+            self.state_contact()
+            self.state_exit_source(pid_left, pid_right, tpser, avger)
+            self.state_follow_source_2(pid_left, pid_right, tpser, avger)
+
+            if side == 'l':
+                side = 'r'
+            else:
+                side = 'l'
+            self.state_rotate_90(pid_left, pid_right, tpser, avger, side)
+            self.state_seek_target(pid_left, pid_right, tpser, avger)
+            self.state_follow_target(pid_left, pid_right, tpser, avger)
+            self.state_enter_target(pid_left, pid_right, tpser, avger)
+            self.state_drop()
 
             return
 
@@ -163,20 +178,21 @@ if __name__ == '__main__':
         def state_enter_source(self, pid_left, pid_right, tpser, avger):
             self.state = "enter_source"
             def cond(r):
-                return abs(self.infraredSensor.proximity - 7) <= 0.5           # TODO FIND GOODENOUGH VALUES
+                print(self.infraredSensor.proximity)
+                return abs(self.infraredSensor.proximity - 3.5) <= 1           # TODO FIND GOODENOUGH VALUES
             self.go_drive(pid_left, pid_right, tpser, avger, cond, 1)
+            self.drive.stop()
 
         # grab the cargo, do a 180
         def state_contact(self):
             self.state = "contact"
-            self.claw.on_for_rotations(SpeedPercent(-20), 0.5)                 # TODO FIND GOODENOUGH VALUES
-            self.drive.left_motor.on_for_rotations(SpeedPercent(-20), 1)       # TODO FIND GOODENOUGH VALUES
-            self.drive.right_motor.on_for_rotations(SpeedPercent(20), 1)       # TODO FIND GOODENOUGH VALUES
+            self.claw.on_to_position(SpeedPercent(-10), -160)
+            self.drive.rotate180()
 
         # seek end of the square
         def state_exit_source(self, pid_left, pid_right, tpser, avger):
             self.state = "exit_source"
-            pass
+            self.drive.short_sprint()
 
         # get out of source zone, seek crossroad
         def state_follow_source_2(self, pid_left, pid_right, tpser, avger):
@@ -199,7 +215,7 @@ if __name__ == '__main__':
             self.state = "follow_target"
             def cond(r):
                 sl, sr = r.detector.get_distance(2)
-                return sl < 100 and sr < 100                                   # TODO FIND GOODENOUGH VALUES
+                return sl < 50 and sr < 50                                   # TODO FIND GOODENOUGH VALUES
             self.go_drive(pid_left, pid_right, tpser, avger, cond, 0)
 
         # run forward for some time
@@ -210,7 +226,7 @@ if __name__ == '__main__':
         # drop the cargo, done
         def state_drop(self):
             self.state = "drop"
-            self.claw.on_for_rotations(SpeedPercent(20), 0.5)                 # TODO FIND GOODENOUGH VALUES
+            self.claw.on_to_position(SpeedPercent(-10), 0)
 
 #######################################################################################
 
@@ -251,10 +267,12 @@ if __name__ == '__main__':
                 robot.main_color()
         except Exception as e:
             robot.drive.stop()
+            robot.claw.on_to_position(SpeedPercent(-10), 0)
             robot.claw.off()
             r.printer.jump_prompt()
             raise e
         robot.drive.stop()
+        robot.claw.on_to_position(SpeedPercent(-10), 0)
         robot.claw.off()
         r.printer.jump_prompt()
 
