@@ -127,6 +127,7 @@ if __name__ == '__main__':
             self.state_contact()
             self.state_exit_source(pid_left, pid_right, tpser, avger)
             self.state_follow_source_2(pid_left, pid_right, tpser, avger)
+            self.state_follow_source_3(pid_left, pid_right, tpser, avger)
 
             if side == 'l':
                 side = 'r'
@@ -139,17 +140,6 @@ if __name__ == '__main__':
             self.state_drop()
 
             return
-
-            self.state_seek_source(pid_left, pid_right, tpser, avger)
-            self.state_follow_source(pid_left, pid_right, tpser, avger)
-            self.state_enter_source(pid_left, pid_right, tpser, avger)
-            self.state_contact()
-            self.state_exit_source(pid_left, pid_right, tpser, avger)
-            self.state_follow_source_2(pid_left, pid_right, tpser, avger)
-            self.state_seek_target(pid_left, pid_right, tpser, avger)
-            self.state_follow_target(pid_left, pid_right, tpser, avger)
-            self.state_enter_target(pid_left, pid_right, tpser, avger)
-            self.state_drop()
 
             # 7 - optimal distance; 22 - casual distance
 
@@ -164,6 +154,7 @@ if __name__ == '__main__':
         # turn 90 degrees
         def state_rotate_90(self, pid_left, pid_right, tpser, avger, side):
             self.state = "turn_90"
+            self.drive.short_sprint()
             self.drive.rotate90(side)
 
         # follow the source line until square
@@ -194,13 +185,21 @@ if __name__ == '__main__':
             self.state = "exit_source"
             self.drive.short_sprint()
 
-        # get out of source zone, seek crossroad
+        # get out of source zone, seek crossroad 1
         def state_follow_source_2(self, pid_left, pid_right, tpser, avger):
             self.state = "follow_source_2"
             def cond(r):
                 sl, sr = r.detector.get_distance(1)
                 return sl < 100 or sr < 100                                    # TODO FIND GOODENOUGH VALUES
             self.go_drive(pid_left, pid_right, tpser, avger, cond, 0)
+
+        # get out of source zone, seek crossroad 2
+        def state_follow_source_3(self, pid_left, pid_right, tpser, avger):
+            self.state = "follow_source_3"
+            def cond(r):
+                sl, sr = r.detector.get_distance(0)
+                return sl < 100 or sr < 100                                    # TODO FIND GOODENOUGH VALUES
+            self.go_drive(pid_left, pid_right, tpser, avger, cond, 1)
 
         # follow the line again until you find target color
         def state_seek_target(self, pid_left, pid_right, tpser, avger):
