@@ -116,6 +116,15 @@ if __name__ == '__main__':
         def main_color(self):
             pid_left, pid_right, tpser, avger = self.init()
 
+            l, r = self.state_seek_source(pid_left, pid_right, tpser, avger)
+            side = 'l'
+            if l > r: # type:ignore
+                side = 'r'
+            self.state_rotate_90(pid_left, pid_right, tpser, avger, side)
+            self.state_follow_source(pid_left, pid_right, tpser, avger)
+
+            return
+
             self.state_seek_source(pid_left, pid_right, tpser, avger)
             self.state_follow_source(pid_left, pid_right, tpser, avger)
             self.state_enter_source(pid_left, pid_right, tpser, avger)
@@ -127,7 +136,7 @@ if __name__ == '__main__':
             self.state_enter_target(pid_left, pid_right, tpser, avger)
             self.state_drop()
 
-            print(self.infraredSensor.proximity) # 7 - optimal distance; 22 - casual distance
+            # 7 - optimal distance; 22 - casual distance
 
         # follow the line until you find source color
         def state_seek_source(self, pid_left, pid_right, tpser, avger):
@@ -135,14 +144,19 @@ if __name__ == '__main__':
             def cond(r):
                 sl, sr = r.detector.get_distance(1)
                 return sl < 100 or sr < 100                                    # TODO FIND GOODENOUGH VALUES
-            self.go_drive(pid_left, pid_right, tpser, avger, cond, 0)
+            return self.go_drive(pid_left, pid_right, tpser, avger, cond, 0, 1)
+
+        # turn 90 degrees
+        def state_rotate_90(self, pid_left, pid_right, tpser, avger, side):
+            self.state = "turn_90"
+            self.drive.rotate90(side)
 
         # follow the source line until square
         def state_follow_source(self, pid_left, pid_right, tpser, avger):
             self.state = "follow_source"
             def cond(r):
                 sl, sr = r.detector.get_distance(1)
-                return sl < 100 and sr < 100                                   # TODO FIND GOODENOUGH VALUES
+                return sl < 50 and sr < 50                                   # TODO FIND GOODENOUGH VALUES
             self.go_drive(pid_left, pid_right, tpser, avger, cond, 0)
 
         # run forward until IR contact
@@ -200,10 +214,10 @@ if __name__ == '__main__':
 
 #######################################################################################
 
-        def go_drive(self, pid_left, pid_right, tpser, avger, condition, color):
+        def go_drive(self, pid_left, pid_right, tpser, avger, condition, color, color2=0):
             while True:
                 tick = time()
-                if condition(self): return
+                if condition(self): return self.detector.get_distance(color2)
                 # Reading color sensors
                 el, er = self.detector.get_distance(color)
                 # Pid and steering control
@@ -240,6 +254,9 @@ if __name__ == '__main__':
             robot.claw.off()
             r.printer.jump_prompt()
             raise e
+        robot.drive.stop()
+        robot.claw.off()
+        r.printer.jump_prompt()
 
 #######################################################################################
 
@@ -248,7 +265,7 @@ if __name__ == '__main__':
     r = Robot()
     r.get_args(args)
 
-    drive = Drive(OUTPUT_D, OUTPUT_A, r.defspeed, r.turnmod, r.turnflat)
+    drive = Drive(OUTPUT_A, OUTPUT_D, r.defspeed, r.turnmod, r.turnflat)
     drive.stop()
     detector = Detector(INPUT_4, INPUT_1)
     #button = TouchSensor(INPUT_3)
